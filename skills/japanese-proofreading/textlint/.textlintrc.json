@@ -54,6 +54,8 @@
     "@textlint-ja/no-synonyms": {
       "allowAlphabet": true,
       "allowNumber": true
-    }
+    },
+    "@textlint-ja/no-dropping-i": true,
+    "date-weekday-mismatch": true
   }
 }

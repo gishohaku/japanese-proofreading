@@ -130,5 +130,51 @@
     "sentence": "設定は `php -n` で無効にします。`php -v`でバージョンを確かめます。",
     "detected_by": "consistency",
     "needle": "和文とインラインコードの間: スペースあり（2） / スペースなし（1）"
+  },
+  {
+    "rule": "TOITSU-05",
+    "sentence": "私はこの値を記録します。私が書いた例です。",
+    "detected_by": "consistency",
+    "needle": "私（2）"
+  },
+  {
+    "rule": "TOITSU-01",
+    "sentence": "入れ子の項目でデバッガを使います。",
+    "detected_by": "consistency",
+    "needle": "デバッガ（1）"
+  },
+  {
+    "rule": "GOI-05",
+    "sentence": "この機能は多くの現場で使ってます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "SEIGO-01",
+    "sentence": "公開日は2026年11月19日（水）です。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "KOZO-02",
+    "sentence": "#### 階層を飛ばした見出し",
+    "detected_by": "consistency",
+    "needle": "見出しの階層の飛び: regression.md"
+  },
+  {
+    "rule": "KOZO-03",
+    "sentence": "詳細は[こちら](https://example.com/docs)を参照します。",
+    "detected_by": "consistency",
+    "needle": "行き先のわからないリンクテキスト: regression.md"
+  },
+  {
+    "rule": "KOZO-04",
+    "sentence": "![](images/screen.png)",
+    "detected_by": "consistency",
+    "needle": "画像の代替テキスト: regression.md"
+  },
+  {
+    "rule": "MOJI-11",
+    "sentence": "手順は①から始めます。",
+    "detected_by": "consistency",
+    "needle": "①"
   }
 ]
