@@ -1,0 +1,134 @@
+[
+  {
+    "rule": "GOI-03",
+    "sentence": "この表示は、どの環境でも見れるはずです。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "OKURI-01",
+    "sentence": "必らず変数に入れてから渡します。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "HIRAKU-03",
+    "sentence": "参照カウントは関数で確認する事が出来ます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "GOI-04",
+    "sentence": "まず最初に、共有の有無を確かめます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "GOI-10",
+    "sentence": "これは的を得た説明です。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "GOI-11",
+    "sentence": "Githubのソースで確かめられます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "GOI-01",
+    "sentence": "サーバで実行しても同じです。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "TOITSU-03",
+    "sentence": "この挙動は仕様である。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "BUN-08",
+    "sentence": "複製しないわけではない。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "JOSHI-01",
+    "sentence": "配列は共有されるが、書き込むと分かれるが、参照は別です。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "MOJI-02",
+    "sentence": "ＰＨＰの配列は値として扱われます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "MOJI-06",
+    "sentence": "この値は(参照カウント)で表示されます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "TOITSU-01",
+    "sentence": "この仕組みはコピーオンライトとも呼ばれます。",
+    "detected_by": "consistency",
+    "needle": "コピーオンライト（1）"
+  },
+  {
+    "rule": "KAKU-02",
+    "sentence": "次の例では配列を変更をします。",
+    "detected_by": "skill"
+  },
+  {
+    "rule": "KAKU-01",
+    "sentence": "配列は書き換えられた場合、新しい領域が確保されます。",
+    "detected_by": "skill"
+  },
+  {
+    "rule": "KAKU-08",
+    "sentence": "このとき、配列が複製します。",
+    "detected_by": "skill"
+  },
+  {
+    "rule": "GOI-02",
+    "sentence": "この動作は仕様で保障されていません。",
+    "detected_by": "skill"
+  },
+  {
+    "rule": "JOSHI-04",
+    "sentence": "値を読んだり、書き換えると分離が起きます。",
+    "detected_by": "skill"
+  },
+  {
+    "rule": "GOI-05",
+    "sentence": "なので、関数の中では共有が続きます。",
+    "detected_by": "textlint"
+  },
+  {
+    "rule": "TOITSU-05",
+    "sentence": "僕はこの動作を何度も確かめました。",
+    "detected_by": "consistency",
+    "needle": "僕（1）"
+  },
+  {
+    "rule": "TOITSU-01",
+    "sentence": "三か所で確かめました。残りの3か所も同じです。",
+    "detected_by": "consistency",
+    "needle": "1か所（1） / 一か所（1）"
+  },
+  {
+    "rule": "GOI-01",
+    "sentence": "コンパイラがポインターを最適化します。",
+    "detected_by": "consistency",
+    "needle": "長音なし: コンパイラ（1）"
+  },
+  {
+    "rule": "TOITSU-08",
+    "sentence": "増分は4MiBです。別の環境では 8 MiB でした。",
+    "detected_by": "consistency",
+    "needle": "数値と単位 MiB の間: スペースあり（1） / スペースなし（1）"
+  },
+  {
+    "rule": "TOITSU-08",
+    "sentence": "この関数は PHP 8.3 から使えます。PHP 8.4で動作が変わりました。",
+    "detected_by": "consistency",
+    "needle": "名前＋番号（PHP 8.5 など）の後ろ: スペースあり（1） / スペースなし（1）"
+  },
+  {
+    "rule": "TOITSU-08",
+    "sentence": "設定は `php -n` で無効にします。`php -v`でバージョンを確かめます。",
+    "detected_by": "consistency",
+    "needle": "和文とインラインコードの間: スペースあり（2） / スペースなし（1）"
+  }
+]
