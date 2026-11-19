@@ -21,7 +21,7 @@ chapter03.md を校正と査読の両方でチェックして、修正版もく�
 ## 特徴
 
 - **2層のチェック**：文・語・表記の正誤を見る「校正」と、段落・節の読みやすさを見る「査読」を分けて出力します。
-- **重要度の区別**：校正の指摘は「誤り」「推奨」「任意」の3段階です。内容の食い違いなど、書き手に確かめてほしい点は「要確認」として分けて出します。査読の指摘はすべて「提案」で、読み手がつまずく箇所があるときだけ出します。修正版に反映するのは「誤り」「推奨」だけです。
+- **重要度の区別**：校正の指摘は「誤り」「推奨」「任意」の3段階です。内容の食い違いなど、書き手に確かめてほしい点は「要確認」として分けて出します。査読の指摘はすべて「提案」で、読み手がつまずく箇所があるときだけ出します。修正版に反映するのは「誤り」「推奨」です。表記や文体の統一を頼んだ場合は、方針が決まった統一も反映します。
 - **textlint との分担**：辞書や形態素解析で判定できるもの（送り仮名の誤り、ら抜き言葉、重言、記号など）は textlint が担当します。文脈が必要なもの（「は」と「が」、主述のねじれ、自動詞・他動詞の取り違えなど）と、textlint の誤検出の除外は Claude が担当します。
 - **文書全体の統一**：章をまたいだ表記ゆれ、ですます調とである調の混在、一人称や読者の呼び方などの揺れを集計し、多数派またはユーザーの指定に合わせて統一案を出します。
 - **ルールID**：すべての指摘にルールID（`KAKU-01`、`PW-02` など）が付き、根拠を確認できます。
@@ -37,15 +37,17 @@ chapter03.md を校正と査読の両方でチェックして、修正版もく�
 | 文の構造 | BUN | 語順、係り受け、主述のねじれ、並列、能動と受動、一文一義、読点、二重否定 |
 | 送り仮名 | OKURI | 「送り仮名の付け方」に基づく本則・例外・許容 |
 | 開く漢字 | HIRAKU | 形式名詞、補助動詞、副詞、接続詞、表外字 |
-| 語彙・表記 | GOI | 外来語の表記、同音異義語、ら抜き・さ入れ、重言、話し言葉、冗長表現、慣用句、固有名詞 |
-| 文字・記号 | MOJI | 句読点、全角・半角、数字、スペース、かっこ、不可視文字 |
+| 語彙・表記 | GOI | 外来語の表記、同音異義語、ら抜き・さ入れ・い抜き、重言、話し言葉、冗長表現、慣用句、固有名詞、誤字・脱字・誤変換、範囲・境界の表現、意味が揺れている語、読み手への配慮 |
+| 文字・記号 | MOJI | 句読点、全角・半角、数字、単位、スペース、かっこ、文末のコロン、不可視文字、環境依存文字 |
+| 構造・参照・リンク | KOZO | 見出しの階層、図表・脚注の参照、リンクテキスト、代替テキスト、UI 要素・キーの書き方 |
 | 文書全体の統一 | TOITSU | 表記ゆれ、同じ対象の別名、文末（敬体・常体）、一人称・読者の呼び方、行動の促し方、記号・体裁、見出し |
+| 内容の整合 | SEIGO | 本文とコード・図表の食い違い、章をまたいだ数値・名称の不一致、日付と曜日のずれ（「要確認」として出す）|
 
 ### 査読
 
 | 分類 | ID | 主な内容 |
 |---|---|---|
-| 3C | TW | 正確（Correct）・明確（Clear）・簡潔（Concise） |
+| 3C | TW | 正確（Correct）・明確（Clear）・簡潔（Concise）、定型的・機械的な書き方 |
 | パラグラフライティング | PW | 1パラグラフ1トピック、トピックセンテンス、文の接続、段落の長さと順序、拾い読みテスト |
 | 文章構成の型 | KATA | PREP、SDS、DESC、手順型、概念説明型 |
 
@@ -89,7 +91,7 @@ Claude を使わずに、エディターや CI からスクリプトを直接実
 # textlint の指摘を、ルールIDに対応付けて文ごとに表示
 python3 skills/japanese-proofreading/scripts/lint.py chapters/*.md
 
-# 表記ゆれ・文末・文体の要素を集計（長音の方針、数字と助数詞、単位やバージョン番号の前後のスペースなど）
+# 表記ゆれ・文末・文体の要素を集計（長音の方針、数字と助数詞、単位やバージョン番号の前後のスペース、見出しの階層、リンクテキスト、環境依存文字など）
 python3 skills/japanese-proofreading/scripts/consistency.py chapters/*.md
 ```
 
@@ -99,7 +101,11 @@ python3 skills/japanese-proofreading/scripts/consistency.py chapters/*.md
 
 ```bash
 python3 tests/check_regression.py
-```textlint を直接使う場合は次のとおりです。
+```
+
+Claude が文脈で判定するルール（「は」と「が」、主述のねじれ、誤変換など）は、スクリプトでは確かめられません。`tests/evals/evals.json` に、スキルを使った実行結果が満たすべき条件をまとめています。スキルやルール集を変更したときは、skill-creator などでこの評価を実行して、判定が変わっていないかを確かめてください。
+
+textlint を直接使う場合は次のとおりです。
 
 ```bash
 cd skills/japanese-proofreading/textlint
@@ -134,7 +140,7 @@ npx textlint --config .textlintrc.json <原稿>
 │   │   ├── checklist.md                全ルールの要点（校正で最初に読む）
 │   │   ├── rules/                      カテゴリ別の詳細（必要なときだけ読む）
 │   │   │   ├── joshi.md  bun.md  okuri.md  hiraku.md
-│   │   │   └── goi.md  moji.md  toitsu.md
+│   │   │   └── goi.md  moji.md  toitsu.md  kozo.md
 │   │   ├── review.md                   査読ルール
 │   │   └── output-format.md            出力テンプレート
 │   ├── scripts/
@@ -142,7 +148,7 @@ npx textlint --config .textlintrc.json <原稿>
 │   │   └── consistency.py              表記ゆれ・文体の集計
 │   └── textlint/                       textlint の設定と prh 辞書
 ├── examples/sample.md                  動作確認用の原稿
-├── tests/                              回帰テスト（誤りを埋め込んだ原稿と期待値）
+├── tests/                              回帰テスト（誤りを埋め込んだ原稿と期待値）、Claude の判定の評価（evals/）
 ├── scripts/package.sh                  .skill ファイルの作成
 └── .github/workflows/check.yml         CI
 ```
@@ -157,9 +163,14 @@ npx textlint --config .textlintrc.json <原稿>
 - [textlint-rule-preset-ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
 - [textlint-rule-preset-jtf-style](https://github.com/textlint-ja/textlint-rule-preset-JTF-style)
 - [textlint-rule-no-synonyms](https://github.com/textlint-ja/textlint-rule-no-synonyms)
+- [textlint-rule-no-dropping-i](https://github.com/textlint-ja/textlint-rule-no-dropping-i)
+- [textlint-rule-date-weekday-mismatch](https://github.com/textlint-rule/textlint-rule-date-weekday-mismatch)
 - 送り仮名の付け方（昭和48年内閣告示第2号）
 - 外来語の表記（平成3年内閣告示第2号）
 - JTF日本語標準スタイルガイド
+- [公用文作成の考え方（文化審議会建議、2022年）](https://www.bunka.go.jp/seisaku/bunkashingikai/kokugo/hokoku/pdf/93651301_01.pdf)
+- [SmartHR Design System（記号の表記、操作手順の書き方）](https://smarthr.design/products/contents/)
+- [デジタル庁デザインシステム（リンクテキスト）](https://design.digital.go.jp/dads/foundations/link-text/)
 
 ## 謝辞
 

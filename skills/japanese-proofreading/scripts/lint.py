@@ -74,6 +74,7 @@ SUPPORTED_EXTENSIONS = {".md", ".markdown", ".mdown", ".mkd", ".txt", ".text", "
 INSTALL_TIMEOUT_SEC = 600
 
 # textlint のルールID → 校正ルール集のルールID
+# .textlintrc.json で無効にしているルール（no-doubled-joshi など）も、有効にした場合に備えて残している
 RULE_MAP = {
     "sentence-length": "BUN-06",
     "max-comma": "BUN-07",
@@ -95,9 +96,11 @@ RULE_MAP = {
     "ja-no-successive-word": "JOSHI-10",
     "ja-no-abusage": "GOI-02",
     "ja-no-redundant-expression": "GOI-09",
-    "ja-unnatural-alphabet": "MOJI-02",
+    "ja-unnatural-alphabet": "GOI-12",
     "no-unmatched-pair": "MOJI-06",
     "no-synonyms": "TOITSU-01",
+    "no-dropping-i": "GOI-05",
+    "date-weekday-mismatch": "SEIGO-01",
     "1.1.1.本文": "TOITSU-03",
     "1.2.1.句点(。)と読点(、)": "MOJI-01",
     "4.1.1.句点(。)": "MOJI-01",
@@ -178,7 +181,7 @@ def sentence_at(text: str, index: int) -> str:
 def map_rule(rule_id: str, message: str) -> str:
     if rule_id == "prh":
         # house.yml の prh メッセージ先頭にルールIDを書いている
-        m = re.search(r"\b(OKURI|HIRAKU|GOI|KAKU|JOSHI|BUN|MOJI)-\d+", message)
+        m = re.search(r"\b(OKURI|HIRAKU|GOI|KAKU|JOSHI|BUN|MOJI|TOITSU)-\d+", message)
         if m:
             return m.group(0)
         if "重言" in message:

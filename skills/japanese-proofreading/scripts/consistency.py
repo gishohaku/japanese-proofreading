@@ -31,7 +31,11 @@ FENCE = re.compile(r"^(```|~~~)")
 REVIEW_BLOCK_START = re.compile(r"^//[a-z]+(\[.*?\])*\{\s*$")
 REVIEW_BLOCK_END = re.compile(r"^//\}\s*$")
 INLINE_CODE_MD = re.compile(r"`[^`]*`")
-INLINE_REVIEW = re.compile(r"@<(code|tt|list|img|table|fn|href|kw|chap|hd|m|idx|hidx|br)>\{[^}]*\}")
+# Re:VIEW のインライン命令。装飾（太字など）とルビは中の本文を残し、それ以外（コード、参照など）は除く
+INLINE_REVIEW_TEXT = re.compile(r"@<(?:b|i|em|strong|u|ami|bou|tti|ttb|ins|del|tcy)>\{([^}]*)\}")
+INLINE_REVIEW_RUBY = re.compile(r"@<ruby>\{([^,}]*),[^}]*\}")
+INLINE_REVIEW = re.compile(r"@<[a-z]+>\{[^}]*\}")
+LIST_ITEM = re.compile(r"^([-*+]\s|\d+[.)]\s|: )")
 HTML_TAG = re.compile(r"<[^>]+>")
 URL = re.compile(r"https?://\S+")
 MD_LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")  # [text](url) → text
@@ -41,6 +45,7 @@ def extract_lines(text: str) -> list[tuple[int, str, str]]:
     """(行番号, 種類, 本文) のリストを返す。種類は body / heading / list / quote / table。"""
     out = []
     in_code = False
+    in_list = False
     in_front = text.startswith("---\n")  # YAML フロントマターは対象外
     for no, raw in enumerate(text.splitlines(), 1):
         line = raw.rstrip()
@@ -59,21 +64,29 @@ def extract_lines(text: str) -> list[tuple[int, str, str]]:
             continue
         if in_code or not line.strip():
             continue
-        if line.startswith("    ") or line.startswith("\t"):
-            continue  # インデントによるコードブロック
+        stripped = line.strip()
+        is_list_item = bool(LIST_ITEM.match(stripped))
+        indented = line.startswith("    ") or line.startswith("\t")
+        if indented and not (is_list_item or in_list):
+            continue  # インデントによるコードブロック（箇条書きの入れ子・項目の続きは本文として扱う）
+        if is_list_item:
+            in_list = True
+        elif not indented:
+            in_list = False
         if line.startswith("#@") or line.startswith("//"):
             continue  # Re:VIEW のコメント・命令
         kind = "body"
-        stripped = line.strip()
         if re.match(r"^(#{1,6}\s|=+(\[.*?\])?\s)", stripped):
             kind = "heading"
-        elif re.match(r"^([-*+]\s|\d+[.)]\s| \*\s|: )", stripped):
+        elif is_list_item or indented:
             kind = "list"
         elif stripped.startswith(">"):
             kind = "quote"
         elif stripped.startswith("|"):
             kind = "table"
         body = INLINE_CODE_MD.sub(" ", stripped)
+        body = INLINE_REVIEW_RUBY.sub(r"\1", body)
+        body = INLINE_REVIEW_TEXT.sub(r"\1", body)
         body = INLINE_REVIEW.sub(" ", body)
         body = MD_LINK.sub(r"\1", body)
         body = URL.sub(" ", body)
@@ -368,13 +381,75 @@ def spacing_around_code(raw_texts: list[str]) -> dict[str, int]:
 
 
 def spacing_between_scripts(lines) -> dict[str, int]:
+    """和文と英字の間のスペースの有無。数字は「3点」「2026年」のように、スペースを
+    入れる方針の文書でも詰めて書くことが多いので数えない。"""
     jp = r"[ぁ-んァ-ヴー一-龥]"
-    al = r"[A-Za-z0-9]"
+    al = r"[A-Za-z]"
     text = "\n".join(b for _, k, b in lines if k != "table")
     return {
         "スペースあり": len(re.findall(f"{jp} {al}|{al} {jp}", text)),
         "スペースなし": len(re.findall(f"{jp}{al}|{al}{jp}", text)),
     }
+
+
+# ---------------------------------------------------------------------------
+# 構造・リンク・文字（KOZO-02〜04、MOJI-11）
+# ---------------------------------------------------------------------------
+
+VAGUE_LINK_TEXT = {"こちら", "ここ", "こちらのページ", "このページ", "リンク", "こちらをクリック",
+                   "here", "click here", "link", "this page"}
+VAGUE_ALT_TEXT = {"画像", "図", "写真", "スクリーンショット", "image", "img", "screenshot", "alt"}
+# 丸囲み数字など、ローマ数字、かっこ付き・囲み文字、組文字（単位など）
+ENV_DEPENDENT = re.compile("[\u2460-\u24ff\u2160-\u217f\u3200-\u32ff\u3300-\u33ff]")
+
+
+def structure_checks(name: str, text: str) -> dict[str, list]:
+    """見出しの階層の飛び、画像の代替テキスト、リンクテキスト、環境依存文字を集める。"""
+    out: dict[str, list] = {"heading_skips": [], "images_without_alt": [],
+                            "vague_links": [], "env_dependent_chars": []}
+    in_code = False
+    in_front = text.startswith("---\n")
+    prev_level = 0
+    for no, raw in enumerate(text.splitlines(), 1):
+        line = raw.rstrip()
+        where = f"{name}:{no}"
+        if in_front:
+            if no > 1 and line == "---":
+                in_front = False
+            continue
+        if FENCE.match(line.strip()):
+            in_code = not in_code
+            continue
+        if REVIEW_BLOCK_START.match(line) and re.match(r"^//(list|emlist|cmd|source|listnum|emlistnum)", line):
+            in_code = True
+            continue
+        if in_code:
+            if REVIEW_BLOCK_END.match(line):
+                in_code = False
+            continue
+        m = re.match(r"^(#{1,6})\s+(.*)$", line) or re.match(r"^(={1,6})(?:\[.*?\])?\s+(.*)$", line)
+        if m:
+            level = len(m.group(1))
+            if prev_level and level > prev_level + 1:
+                out["heading_skips"].append({"where": where, "from": prev_level, "to": level,
+                                             "heading": m.group(2).strip()})
+            prev_level = level
+        body = INLINE_CODE_MD.sub(" ", line)
+        for m in re.finditer(r"!\[([^\]]*)\]\([^)]*\)", body):
+            alt = m.group(1).strip()
+            if not alt or alt.lower() in VAGUE_ALT_TEXT:
+                out["images_without_alt"].append({"where": where, "alt": alt})
+        for m in re.finditer(r"(?<!!)\[([^\]]+)\]\([^)]*\)", body):
+            label = m.group(1).strip()
+            if label.lower() in VAGUE_LINK_TEXT:
+                out["vague_links"].append({"where": where, "text": label})
+        for m in re.finditer(r"@<href>\{[^,}]*,\s*([^}]*)\}", body):
+            if m.group(1).strip().lower() in VAGUE_LINK_TEXT:
+                out["vague_links"].append({"where": where, "text": m.group(1).strip()})
+        chars = ENV_DEPENDENT.findall(body)
+        if chars:
+            out["env_dependent_chars"].append({"where": where, "chars": "".join(dict.fromkeys(chars))})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -384,8 +459,12 @@ def spacing_between_scripts(lines) -> dict[str, int]:
 def analyze(files: list[Path]) -> dict:
     lines = []
     raw_texts = []
+    structure: dict[str, list] = {}
     for f in files:
-        text = unicodedata.normalize("NFC", f.read_text(encoding="utf-8", errors="replace"))
+        original = f.read_text(encoding="utf-8", errors="replace")
+        for key, found in structure_checks(f.name, original).items():
+            structure.setdefault(key, []).extend(found)
+        text = unicodedata.normalize("NFC", original)
         raw_texts.append(re.sub(r"```.*?```", "", text, flags=re.S))
         lines.extend((f"{f.name}:{no}", k, b) for no, k, b in extract_lines(text))
     body_text = "\n".join(b for _, k, b in lines)
@@ -405,12 +484,7 @@ def analyze(files: list[Path]) -> dict:
         suffix = r"(?=[はがのもにをと、])" if name == "一人称" else ""
         c = count_patterns(body_text, [re.escape(p) + suffix for p in pats])
         c = {k.replace(suffix, ""): v for k, v in c.items()}
-        if name == "一人称" and "私たち" in pats:
-            # 「私たち」を「私」と二重に数えない
-            if "私たち" in c and "私" in c:
-                c["私"] -= c["私たち"]
-                if c["私"] <= 0:
-                    del c["私"]
+        # 一人称は後ろに助詞を要求しているので、「私」は「私たち」に一致しない（差し引かない）
         if name == "読者の呼び方":
             for longer, shorter in (("読者の皆さん", "皆さん"), ("読者のみなさん", "みなさん")):
                 if longer in c and shorter in c:
@@ -445,6 +519,7 @@ def analyze(files: list[Path]) -> dict:
         "choon_policy": choon_policy(body_text),
         "unit_spacing": unit_spacing(body_text),
         "version_spacing": version_spacing(body_text),
+        "structure": structure,
     }
 
 
@@ -505,7 +580,7 @@ def print_report(r: dict) -> None:
         forms = " / ".join(f"{w}（{n}）" for w, n in it["counts"].items())
         print(f"  - {it['name']}: {forms}")
     sp = r["spacing_jp_alnum"]
-    print(f"  - 和文と英数字の間: スペースあり（{sp['スペースあり']}） / スペースなし（{sp['スペースなし']}）")
+    print(f"  - 和文と英字の間: スペースあり（{sp['スペースあり']}） / スペースなし（{sp['スペースなし']}）")
     vs = r["version_spacing"]
     if vs["スペースあり"] and vs["スペースなし"]:
         print(f"  - 名前＋番号（PHP 8.5 など）の後ろ: スペースあり（{vs['スペースあり']}） / スペースなし（{vs['スペースなし']}）")
@@ -517,6 +592,22 @@ def print_report(r: dict) -> None:
         print("  - 和文との間のスペースが語によって揺れているもの（上位15語）:")
         for it in r["spacing_by_word"]:
             print(f"      {it['word']}: あり（{it['スペースあり']}） / なし（{it['スペースなし']}）")
+    st = r.get("structure", {})
+    if any(st.values()):
+        print("\n## 構造・リンク・文字（KOZO-02〜04、MOJI-11）")
+        for it in st["heading_skips"][:20]:
+            print(f"  - 見出しの階層の飛び: {it['where']} レベル{it['from']} → レベル{it['to']}「{it['heading']}」")
+        for it in st["images_without_alt"][:20]:
+            shown = f"「{it['alt']}」" if it["alt"] else "なし"
+            print(f"  - 画像の代替テキスト: {it['where']} {shown}")
+        for it in st["vague_links"][:20]:
+            print(f"  - 行き先のわからないリンクテキスト: {it['where']}「{it['text']}」")
+        for it in st["env_dependent_chars"][:20]:
+            print(f"  - 環境依存文字: {it['where']} {it['chars']}")
+        for key, label in (("heading_skips", "見出しの階層の飛び"), ("images_without_alt", "画像の代替テキスト"),
+                           ("vague_links", "リンクテキスト"), ("env_dependent_chars", "環境依存文字")):
+            if len(st[key]) > 20:
+                print(f"  （{label}はほかに {len(st[key]) - 20} 件）")
     print("\n件数は候補。熟語の一部や本来の意味での使用（「事件」「時間」など）を"
           "完全には除外できないので、スキルが文脈で判断すること。")
 
