@@ -1,0 +1,3 @@
+# Windows で clone しても、原稿・辞書・テストの改行を LF のまま保つ
+* text=auto eol=lf
+*.skill binary

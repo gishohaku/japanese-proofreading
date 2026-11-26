@@ -461,7 +461,8 @@ def analyze(files: list[Path]) -> dict:
     raw_texts = []
     structure: dict[str, list] = {}
     for f in files:
-        original = f.read_text(encoding="utf-8", errors="replace")
+        # BOM 付き UTF-8（Windows のメモ帳など）でもフロントマターを判定できるよう utf-8-sig で読む
+        original = f.read_text(encoding="utf-8-sig", errors="replace")
         for key, found in structure_checks(f.name, original).items():
             structure.setdefault(key, []).extend(found)
         text = unicodedata.normalize("NFC", original)
@@ -635,6 +636,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # リダイレクト先が cp932 などになる環境（日本語版 Windows）でも UTF-8 で出力する
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if hasattr(signal, "SIGPIPE"):
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # head などに渡しても例外を出さない
     sys.exit(main())

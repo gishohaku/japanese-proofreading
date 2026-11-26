@@ -70,7 +70,7 @@ cp -r skills/japanese-proofreading <プロジェクト>/.claude/skills/
 `.skill` ファイルを作成し、claude.ai のスキル設定からアップロードします。GitHub Actions の実行結果（Artifacts）からもダウンロードできます。
 
 ```bash
-./scripts/package.sh
+python3 scripts/package.py
 # → dist/japanese-proofreading.skill
 ```
 
@@ -82,6 +82,8 @@ cp -r skills/japanese-proofreading <プロジェクト>/.claude/skills/
 | textlint（`lint.py`）| Python 3.9 以降、Node.js 20 以降、npm レジストリへの接続 |
 
 初回実行時に textlint の依存関係（同義語辞書を含めて約 30MB）をインストールします。スキルのディレクトリが書き込み禁止の場合は、`~/.cache/japanese-proofreading/` にインストールします。インストール先は環境変数 `JAPANESE_PROOFREADING_CACHE` で変更できます。Node.js がない、または接続できない環境では、textlint を使わずにルール集だけで校正します。
+
+macOS、Linux、Windows で動きます（CI で3つの OS とも確認しています）。Windows で `python3` が見つからない場合は、本書のコマンドの `python3` を `python` または `py -3` に読み替えてください。
 
 ## スクリプトだけを使う
 
@@ -149,7 +151,7 @@ npx textlint --config .textlintrc.json <原稿>
 │   └── textlint/                       textlint の設定と prh 辞書
 ├── examples/sample.md                  動作確認用の原稿
 ├── tests/                              回帰テスト（誤りを埋め込んだ原稿と期待値）、Claude の判定の評価（evals/）
-├── scripts/package.sh                  .skill ファイルの作成
+├── scripts/package.py                  .skill ファイルの作成
 └── .github/workflows/check.yml         CI
 ```
 

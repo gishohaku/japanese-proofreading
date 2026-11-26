@@ -9,16 +9,21 @@ import subprocess
 import sys
 from pathlib import Path
 
+# 日本語版 Windows（cp932）でも、結果の表示で UnicodeEncodeError にならないようにする
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "japanese-proofreading" / "scripts"
 SAMPLE = ROOT / "tests" / "regression.md"
 
 lint = json.loads(subprocess.run(
     [sys.executable, str(SCRIPTS / "lint.py"), str(SAMPLE), "--json", "--full"],
-    capture_output=True, text=True, check=True).stdout)
+    capture_output=True, text=True, encoding="utf-8", check=True).stdout)
 cons = subprocess.run(
     [sys.executable, str(SCRIPTS / "consistency.py"), str(SAMPLE)],
-    capture_output=True, text=True, check=True).stdout
+    capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 failed = 0
 expected = json.loads((ROOT / "tests" / "expected.json").read_text(encoding="utf-8"))

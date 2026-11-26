@@ -7,7 +7,14 @@ on:
 
 jobs:
   lint-example:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,15 +24,26 @@ jobs:
         with:
           python-version: "3.12"
       # textlint の設定と辞書が壊れていないことを、サンプル原稿で確認する
+      # Windows では python3 がないことがあるため python で呼ぶ（setup-python が PATH に入れる）
       - name: Run textlint on example
-        run: python3 skills/japanese-proofreading/scripts/lint.py examples/sample.md
+        run: python skills/japanese-proofreading/scripts/lint.py examples/sample.md
       - name: Run consistency check on example
-        run: python3 skills/japanese-proofreading/scripts/consistency.py examples/sample.md
+        run: python skills/japanese-proofreading/scripts/consistency.py examples/sample.md
       - name: Regression test
-        run: python3 tests/check_regression.py
+        run: python tests/check_regression.py
+      # 日本語版 Windows に近い条件（cp932）でも、出力の文字化けや例外が起きないことを確かめる
+      - name: Regression test (cp932 locale)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: cp932
+          PYTHONUTF8: "0"
+        run: python tests/check_regression.py
       - name: Package skill
-        run: ./scripts/package.sh
+        if: runner.os == 'Linux'
+        run: python scripts/package.py
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
         with:
           name: japanese-proofreading-skill
           path: dist/japanese-proofreading.skill
