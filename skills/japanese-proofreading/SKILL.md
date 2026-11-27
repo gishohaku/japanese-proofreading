@@ -62,6 +62,8 @@ python3 <skill-dir>/scripts/lint.py <原稿> [...] > lint.txt
 python3 <skill-dir>/scripts/consistency.py <原稿> [...] > consistency.txt
 ```
 
+Windows で `python3` が見つからない（または Microsoft Store が開く）場合は、`python` か `py -3` に置き換える。
+
 出力はファイルに保存し、冒頭のルール別の件数を見てから、章ごとに必要な部分だけを読む。`lint.py` の出力はファイル（章）ごとに `## ファイル名` で区切られている。
 
 - 書籍のように複数ファイルに分かれている場合は、全ファイルをまとめて渡す。表記方針は本全体の多数派で決めるため。

@@ -9,16 +9,21 @@ import subprocess
 import sys
 from pathlib import Path
 
+# 日本語版 Windows（cp932）でも、結果の表示で UnicodeEncodeError にならないようにする
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "japanese-proofreading" / "scripts"
 SAMPLE = ROOT / "tests" / "regression.md"
 
 lint = json.loads(subprocess.run(
     [sys.executable, str(SCRIPTS / "lint.py"), str(SAMPLE), "--json", "--full"],
-    capture_output=True, text=True, check=True).stdout)
+    capture_output=True, text=True, encoding="utf-8", check=True).stdout)
 cons = subprocess.run(
     [sys.executable, str(SCRIPTS / "consistency.py"), str(SAMPLE)],
-    capture_output=True, text=True, check=True).stdout
+    capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 failed = 0
 expected = json.loads((ROOT / "tests" / "expected.json").read_text(encoding="utf-8"))
@@ -26,8 +31,9 @@ for case in expected:
     if case["detected_by"] == "textlint":
         ok = any(it["rule"] == case["rule"] and case["sentence"][:6] in it["sentence"] for it in lint)
     elif case["detected_by"] == "consistency":
-        # consistency.py の出力に、期待する集計の行（needle）が含まれるかを見る
-        ok = case["needle"] in cons
+        # consistency.py の出力に、期待する集計の行（needle）が含まれるかを見る。
+        # absent は誤検出の防止で、その文字列が出力に含まれないことを確かめる
+        ok = case["needle"] in cons if "needle" in case else case["absent"] not in cons
     else:
         print(f"  skill    {case['rule']:10} {case['sentence']}")
         continue

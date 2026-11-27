@@ -119,19 +119,33 @@ RULE_MAP = {
 
 
 
+def textlint_entry() -> Path:
+    # .bin/textlint は sh 用のシムで Windows では実行できないため、本体の JS を node で直接実行する
+    return TEXTLINT_DIR / "node_modules" / "textlint" / "bin" / "textlint.js"
+
+
 def ensure_deps() -> bool:
-    if (TEXTLINT_DIR / "node_modules" / ".bin" / "textlint").exists():
+    if shutil.which("node") is None:
+        print("textlint を実行できません: node が見つかりません。", file=sys.stderr)
+        return False
+    if textlint_entry().exists():
         return True
-    if shutil.which("npm") is None:
+    # Windows の npm は npm.cmd なので、名前ではなく which で得たフルパスで呼ぶ
+    npm = shutil.which("npm")
+    if npm is None:
         print("textlint を実行できません: npm が見つかりません。", file=sys.stderr)
         return False
-    cmd = ["npm", "ci", "--no-audit", "--no-fund", "--loglevel=error"]
+    cmd = [npm, "ci", "--no-audit", "--no-fund", "--loglevel=error"]
     print("textlint の依存関係をインストールしています（初回のみ、約30MB）…", file=sys.stderr)
     try:
         result = subprocess.run(cmd, cwd=TEXTLINT_DIR, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace",
                                 timeout=INSTALL_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         print("textlint の依存関係のインストールが時間切れになりました。", file=sys.stderr)
+        return False
+    except OSError as e:
+        print(f"npm を実行できませんでした: {e}", file=sys.stderr)
         return False
     if result.returncode != 0:
         print("textlint の依存関係を入れられませんでした。", file=sys.stderr)
@@ -141,11 +155,17 @@ def ensure_deps() -> bool:
 
 
 def run_textlint(files: list[Path]) -> list[dict]:
-    binary = TEXTLINT_DIR / "node_modules" / ".bin" / "textlint"
-    cmd = [str(binary), "--config", str(TEXTLINT_DIR / ".textlintrc.json"),
+    cmd = [shutil.which("node") or "node", str(textlint_entry()),
+           "--config", str(TEXTLINT_DIR / ".textlintrc.json"),
            "--format", "json", *[str(f) for f in files]]
     # 指摘があると終了コード 1 になるため、終了コードではなく出力で判定する
-    result = subprocess.run(cmd, cwd=TEXTLINT_DIR, capture_output=True, text=True)
+    # textlint は UTF-8 で出力する。指定しないと日本語版 Windows では cp932 で読んでしまう
+    try:
+        result = subprocess.run(cmd, cwd=TEXTLINT_DIR, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace")
+    except OSError as e:
+        print(f"textlint を実行できませんでした: {e}", file=sys.stderr)
+        sys.exit(2)
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -243,7 +263,10 @@ def summarize(results: list[dict]) -> list[dict]:
     items = []
     for file_result in results:
         path = Path(file_result["filePath"])
-        text = path.read_text(encoding="utf-8", errors="replace")
+        # textlint の range は CRLF を含む生の文字列での位置なので、改行を正規化せずに読む。
+        # BOM は textlint 側でも除かれるため、utf-8-sig で読んで位置を合わせる
+        with open(path, encoding="utf-8-sig", errors="replace", newline="") as fp:
+            text = fp.read()
         used_ga: set[int] = set()
         for msg in file_result["messages"]:
             index = msg.get("range", [msg.get("index", 0)])[0]
@@ -350,6 +373,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # リダイレクト先が cp932 などになる環境（日本語版 Windows）でも UTF-8 で出力する
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if hasattr(signal, "SIGPIPE"):
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # head などに渡しても例外を出さない
     sys.exit(main())

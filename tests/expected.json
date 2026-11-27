@@ -176,5 +176,19 @@
     "sentence": "手順は①から始めます。",
     "detected_by": "consistency",
     "needle": "①"
+  },
+  {
+    "rule": "TOITSU-01",
+    "sentence": "参加者は平等に扱い、会場費は3,000円などと説明します。",
+    "detected_by": "consistency",
+    "absent": "など/等",
+    "note": "「平等」の「等」を「など/等」の揺れとして数えない（誤検出の防止）"
+  },
+  {
+    "rule": "TOITSU-08",
+    "sentence": "参加者は平等に扱い、会場費は3,000円などと説明します。",
+    "detected_by": "consistency",
+    "absent": "読点: ",
+    "note": "桁区切りの「3,000」を読点「,」として数えない（誤検出の防止）"
   }
 ]
