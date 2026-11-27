@@ -186,7 +186,8 @@ VARIANT_SETS: list[tuple[str, list[str]]] = [
     ("および/及び", ["および", "及び"]),
     ("ただし/但し", ["ただし", "但し"]),
     ("したがって/従って", ["したがって", r"(?<![にを])従って"]),
-    ("など/等", ["など", r"(?<=[ぁ-んァ-ヴー一-龥])等(?![しく号価級分])"]),
+    # 「平等」「同等」「一等」など、等が熟語の一部になっているものは除く
+    ("など/等", ["など", r"(?<=[ぁ-んァ-ヴー一-龥])(?<![平同均対上高初中劣優特一二三何])等(?![しく号価級分])"]),
     ("ように/様に", ["ように", "様に"]),
     ("行う/行なう", ["行う", "行なう"]),
     ("表す/表わす", ["表す", "表わす"]),
@@ -217,6 +218,12 @@ STYLE_SETS: list[tuple[str, list[str]]] = [
     ("感嘆符", ["！", "!"]),
     ("疑問符", ["？", "?"]),
 ]
+
+
+# 文体の要素のうち、そのまま数えると誤検出するもの（表示は左の文字のまま）
+STYLE_PATTERNS = {
+    ",": r"(?<!\d),|,(?!\d)",  # 3,000 のような桁区切りは読点として数えない
+}
 
 
 def count_patterns(text: str, patterns: list[str]) -> dict[str, int]:
@@ -483,8 +490,9 @@ def analyze(files: list[Path]) -> dict:
     style = []
     for name, pats in STYLE_SETS:
         suffix = r"(?=[はがのもにをと、])" if name == "一人称" else ""
-        c = count_patterns(body_text, [re.escape(p) + suffix for p in pats])
-        c = {k.replace(suffix, ""): v for k, v in c.items()}
+        regex = {(STYLE_PATTERNS[p] if p in STYLE_PATTERNS else re.escape(p) + suffix): p
+                 for p in pats}
+        c = {regex[k]: v for k, v in count_patterns(body_text, list(regex)).items()}
         # 一人称は後ろに助詞を要求しているので、「私」は「私たち」に一致しない（差し引かない）
         if name == "読者の呼び方":
             for longer, shorter in (("読者の皆さん", "皆さん"), ("読者のみなさん", "みなさん")):

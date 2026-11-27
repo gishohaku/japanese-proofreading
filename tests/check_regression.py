@@ -31,8 +31,9 @@ for case in expected:
     if case["detected_by"] == "textlint":
         ok = any(it["rule"] == case["rule"] and case["sentence"][:6] in it["sentence"] for it in lint)
     elif case["detected_by"] == "consistency":
-        # consistency.py の出力に、期待する集計の行（needle）が含まれるかを見る
-        ok = case["needle"] in cons
+        # consistency.py の出力に、期待する集計の行（needle）が含まれるかを見る。
+        # absent は誤検出の防止で、その文字列が出力に含まれないことを確かめる
+        ok = case["needle"] in cons if "needle" in case else case["absent"] not in cons
     else:
         print(f"  skill    {case['rule']:10} {case['sentence']}")
         continue
